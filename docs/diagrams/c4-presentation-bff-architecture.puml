@@ -1,0 +1,73 @@
+@startuml
+' This PlantUML diagram is automatically generated and enhanced.
+' Comments below each action are incorporated into action labels.
+' Variables in {{name}} format are highlighted with bold/italic styling.
+'
+' For more information and usage instructions, see:
+' https://github.com/hzarsteck/puml-sd-multiline
+
+' Use PlantUML's built-in layout engine so this diagram does not depend
+' on a machine-specific Graphviz `dot` installation path.
+!pragma layout smetana
+
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Shared GraphQL BFF Architecture
+
+LAYOUT_LEFT_RIGHT()
+
+Person(internal_users, "Internal Users", "Use 3 internal UIs")
+Person(external_users, "External Users", "Use 1 external UI")
+
+System_Ext(entra, "Azure Entra", "Identity provider")
+
+System_Boundary(ui_boundary, "User Interfaces") {
+  Container(internal_ui_1, "Internal UI 1", "UI", "Internal UI")
+  Container(internal_ui_2, "Internal UI 2", "UI", "Internal UI")
+  Container(internal_ui_3, "Internal UI 3", "UI", "Internal UI")
+  Container(external_ui, "External UI", "UI", "External UI")
+}
+
+System_Boundary(bff_boundary, "Presentation / BFF Context") {
+  Container(auth_proxy, "auth-proxy", "Proxy", "Validates JWT access tokens before requests enter the GraphQL layer")
+  Container(graphql_main, "graphql-main", "GraphQL Gateway", "Composes the shared supergraph")
+  Container(subgraphs, "GraphQL Subgraphs", "GraphQL Services", "12 subgraphs contributing schema and behavior to the supergraph")
+  Container(graphql_crm, "graphql-crm", "Adapter Subgraph", "Represents CRM capability in the supergraph")
+}
+
+System_Boundary(crm_boundary, "CRM System") {
+  Container(crm_api, "crm-api", "Backend API", "Canonical home for shared CRM mutation logic")
+  Container(crm_mq_client, "crm-mq-client", "Messaging Interface", "Event-based CRM operations")
+  ContainerDb(crm_read_db, "CRM Read Model / Approved Replica", "Database", "Approved read path for GraphQL queries")
+}
+
+Rel(internal_users, internal_ui_1, "Uses")
+Rel(internal_users, internal_ui_2, "Uses")
+Rel(internal_users, internal_ui_3, "Uses")
+Rel(external_users, external_ui, "Uses")
+
+Rel(internal_ui_1, entra, "Obtains JWT via MSAL")
+Rel(internal_ui_2, entra, "Obtains JWT via MSAL")
+Rel(internal_ui_3, entra, "Obtains JWT via MSAL")
+Rel(external_ui, entra, "Obtains JWT via MSAL")
+
+Rel(internal_ui_1, auth_proxy, "GraphQL requests with JWT")
+Rel(internal_ui_2, auth_proxy, "GraphQL requests with JWT")
+Rel(internal_ui_3, auth_proxy, "GraphQL requests with JWT")
+Rel(external_ui, auth_proxy, "GraphQL requests with JWT")
+
+Rel(auth_proxy, graphql_main, "Validated requests")
+Rel(graphql_main, subgraphs, "Routes and composes schema")
+Rel(subgraphs, graphql_crm, "Includes CRM schema and resolvers")
+
+Rel(graphql_crm, crm_read_db, "Query path via IQueryable")
+Rel(graphql_crm, crm_api, "Mutation path for shared logic")
+
+UpdateElementStyle(auth_proxy, $bgColor="#d9edf7", $fontColor="#0b3d5c", $borderColor="#31708f")
+UpdateElementStyle(graphql_main, $bgColor="#fcf8e3", $fontColor="#6b4f00", $borderColor="#8a6d3b")
+UpdateElementStyle(graphql_crm, $bgColor="#f2dede", $fontColor="#7a1f1f", $borderColor="#a94442")
+UpdateElementStyle(crm_read_db, $bgColor="#e8f5e9", $fontColor="#1b5e20", $borderColor="#2e7d32")
+
+SHOW_LEGEND()
+
+@enduml
